@@ -149,16 +149,30 @@ class Theme:
                 border-right: 1px solid {colors['border_medium']};
             }}
 
-            /* 側邊欄導航標題優化 */
-            section[data-testid="stSidebar"] .css-17lntkn {{
+            /* 側邊欄導航標題優化（多種選擇器適配不同 Streamlit 版本）*/
+            section[data-testid="stSidebar"] h2,
+            section[data-testid="stSidebar"] .css-17lntkn,
+            section[data-testid="stSidebar"] [class*="css-"] h2,
+            section[data-testid="stSidebar"] > div > div > div > h2 {{
                 font-size: 0px !important;  /* 隱藏原始 "app" 文字 */
             }}
 
-            section[data-testid="stSidebar"] .css-17lntkn::before {{
+            section[data-testid="stSidebar"] h2::before,
+            section[data-testid="stSidebar"] .css-17lntkn::before,
+            section[data-testid="stSidebar"] > div > div > div > h2::before {{
                 content: "🧭 導航" !important;
                 font-size: 1rem !important;
                 color: {colors['text_primary']} !important;
                 font-weight: 600 !important;
+                display: block !important;
+            }}
+
+            /* 移除數字圖標 */
+            section[data-testid="stSidebar"] h2::after,
+            section[data-testid="stSidebar"] .css-17lntkn::after,
+            section[data-testid="stSidebar"] > div > div > div > h2::after {{
+                content: "" !important;
+                display: none !important;
             }}
 
             /* 側邊欄導航連結樣式 */
@@ -350,130 +364,8 @@ class Theme:
                 background: linear-gradient(90deg, rgba(255, 82, 82, 0.05) 0%, {colors['bg_card']} 20%);
             }}
 
-            /* ========== 時間軸網格佈局 ========== */
-            .timeline-container {{
-                display: flex;
-                overflow-x: auto;
-                overflow-y: hidden;
-                padding: 1rem 0;
-                gap: 1rem;
-                scroll-behavior: smooth;
-            }}
-
-            .timeline-container::-webkit-scrollbar {{
-                height: 8px;
-            }}
-
-            .timeline-date-column {{
-                min-width: 280px;
-                max-width: 280px;
-                flex-shrink: 0;
-            }}
-
-            .timeline-date-header {{
-                background: linear-gradient(135deg, {colors['accent_primary']} 0%, {colors['accent_secondary']} 100%);
-                color: white;
-                padding: 0.8rem;
-                border-radius: 8px 8px 0 0;
-                text-align: center;
-                font-weight: 600;
-                font-size: 1rem;
-                position: sticky;
-                top: 0;
-                z-index: 1;
-            }}
-
-            .timeline-date-header.today {{
-                background: linear-gradient(135deg, {colors['accent_gold']} 0%, #ff9800 100%);
-            }}
-
-            .timeline-events-list {{
-                display: flex;
-                flex-direction: column;
-                gap: 0.75rem;
-                padding: 0.75rem;
-                background: {colors['bg_secondary']};
-                border-radius: 0 0 8px 8px;
-                min-height: 200px;
-                border: 1px solid {colors['border_light']};
-                border-top: none;
-            }}
-
-            .timeline-event-card {{
-                background: {colors['bg_card']};
-                padding: 0.8rem;
-                border-radius: 6px;
-                border-left: 3px solid {colors['accent_primary']};
-                box-shadow: 0 2px 4px {colors['shadow_sm']};
-                transition: all 0.2s ease;
-                cursor: pointer;
-            }}
-
-            .timeline-event-card:hover {{
-                transform: translateY(-2px);
-                box-shadow: 0 4px 8px {colors['shadow_md']};
-                border-left-width: 4px;
-            }}
-
-            .timeline-event-card.important {{
-                border-left-color: {colors['data_negative']};
-                background: linear-gradient(90deg, {colors['bg_card']} 95%, rgba(255, 82, 82, 0.1) 100%);
-            }}
-
-            .timeline-event-title {{
-                font-size: 0.9rem;
-                font-weight: 600;
-                color: {colors['text_primary']};
-                margin-bottom: 0.4rem;
-                line-height: 1.3;
-            }}
-
-            .timeline-event-time {{
-                font-size: 0.8rem;
-                color: {colors['text_muted']};
-                margin-bottom: 0.3rem;
-            }}
-
-            .timeline-event-meta {{
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                font-size: 0.75rem;
-                color: {colors['text_secondary']};
-                margin-top: 0.4rem;
-            }}
-
-            .timeline-event-importance {{
-                font-size: 0.9rem;
-            }}
-
-            .timeline-event-data {{
-                font-size: 0.75rem;
-                color: {colors['text_muted']};
-            }}
-
-            .timeline-news-links {{
-                display: flex;
-                gap: 0.3rem;
-                margin-top: 0.5rem;
-                flex-wrap: wrap;
-            }}
-
-            .timeline-news-link {{
-                background: {colors['accent_primary']};
-                color: white !important;
-                padding: 3px 8px;
-                border-radius: 3px;
-                font-size: 0.7rem;
-                text-decoration: none !important;
-                transition: all 0.2s ease;
-                display: inline-block;
-            }}
-
-            .timeline-news-link:hover {{
-                opacity: 0.8;
-                transform: scale(1.05);
-            }}
+            /* ========== 時間軸網格佈局（已簡化為內聯樣式，此區塊保留備用）========== */
+            /* 時間軸相關樣式已改用內聯樣式實現，提高 Streamlit 兼容性 */
 
             /* ========== 數據顏色（金融專用）========== */
             .positive {{
