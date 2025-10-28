@@ -563,6 +563,85 @@ class Theme:
                 color: {colors['text_primary']} !important;
             }}
 
+            /* ========== 經濟日曆表格樣式 ========== */
+            /* 日期標題 - 今天的特殊樣式 */
+            .economic-calendar-today {{
+                background: linear-gradient(135deg, #ffd700 0%, #ff9800 100%);
+                color: {colors['text_inverse']} !important;
+                padding: 0.8rem 1rem;
+                border-radius: 8px;
+                margin: 1rem 0 0.5rem 0;
+                font-weight: 700 !important;
+                box-shadow: 0 4px 8px rgba(255, 215, 0, 0.3);
+            }}
+
+            /* 日期標題 - 一般日期 */
+            .economic-calendar-date {{
+                background: {colors['bg_card']};
+                color: {colors['text_primary']} !important;
+                padding: 0.6rem 1rem;
+                border-radius: 6px;
+                border-left: 4px solid {colors['accent_primary']};
+                margin: 0.8rem 0 0.4rem 0;
+                font-weight: 600 !important;
+            }}
+
+            /* 事件行 - 高重要性 */
+            .event-high-importance {{
+                background: linear-gradient(90deg, rgba(255,68,68,0.1) 0%, transparent 100%);
+                border-left: 4px solid {colors['data_negative']};
+                padding: 0.6rem 0.8rem;
+                margin: 0.3rem 0;
+                border-radius: 4px;
+                transition: all 0.2s ease;
+            }}
+
+            .event-high-importance:hover {{
+                background: linear-gradient(90deg, rgba(255,68,68,0.15) 0%, transparent 100%);
+                transform: translateX(4px);
+                box-shadow: 0 2px 8px rgba(255,68,68,0.2);
+            }}
+
+            /* 事件行 - 中重要性 */
+            .event-medium-importance {{
+                background: transparent;
+                border-left: 3px solid rgba(255,152,0,0.5);
+                padding: 0.5rem 0.8rem;
+                margin: 0.2rem 0;
+                border-radius: 4px;
+                transition: all 0.2s ease;
+            }}
+
+            .event-medium-importance:hover {{
+                background: rgba(255,152,0,0.05);
+                transform: translateX(2px);
+            }}
+
+            /* 事件行 - 低重要性 */
+            .event-low-importance {{
+                background: transparent;
+                border-left: 2px solid rgba(255,255,255,0.1);
+                padding: 0.4rem 0.8rem;
+                margin: 0.1rem 0;
+                opacity: 0.7;
+                transition: all 0.2s ease;
+            }}
+
+            .event-low-importance:hover {{
+                opacity: 1;
+            }}
+
+            /* 過濾器組件樣式 */
+            .stMultiSelect label {{
+                font-weight: 600 !important;
+                color: {colors['text_primary']} !important;
+            }}
+
+            .stCheckbox label {{
+                font-weight: 500 !important;
+                color: {colors['text_primary']} !important;
+            }}
+
             /* ========== 響應式設計 ========== */
             @media (max-width: 768px) {{
                 .metric-card h3 {{

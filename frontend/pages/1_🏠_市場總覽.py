@@ -644,79 +644,167 @@ with tabs[2]:
         if not events_by_date:
             st.info("未來兩週暫無重要經濟事件")
         else:
-            st.info(f"💡 橫向滾動查看所有日期的事件  |  共 {len(events_by_date)} 天 {sum(len(events) for events in events_by_date.values())} 個事件")
-
-            # 使用 100% Streamlit 原生組件（無 HTML）
             from backend.data_sources.trading_economics_client import TradingEconomicsClient
 
+            # 計算總事件數
+            total_events = sum(len(events) for events in events_by_date.values())
+
+            # 過濾器選項
+            col_filter1, col_filter2, col_filter3 = st.columns([2, 2, 3])
+
+            with col_filter1:
+                importance_filter = st.multiselect(
+                    "重要性篩選",
+                    options=["⭐⭐⭐ 高", "⭐⭐ 中", "⭐ 低"],
+                    default=["⭐⭐⭐ 高", "⭐⭐ 中", "⭐ 低"],
+                    key="importance_filter"
+                )
+
+            with col_filter2:
+                show_past = st.checkbox("顯示已過事件", value=False, key="show_past")
+
+            with col_filter3:
+                st.info(f"📊 共 {len(events_by_date)} 天 {total_events} 個事件")
+
+            # 準備表格數據
+            table_data = []
             today = datetime.now().strftime('%Y-%m-%d')
-            date_list = list(events_by_date.items())
+            now = datetime.now()
 
-            # 使用 Streamlit columns 實現橫向布局
-            cols = st.columns(len(date_list))
+            importance_map = {"⭐⭐⭐ 高": 3, "⭐⭐ 中": 2, "⭐ 低": 1}
+            allowed_levels = {importance_map[f] for f in importance_filter}
 
-            for idx, (date_str, events) in enumerate(date_list):
-                with cols[idx]:
-                    # 判斷是否為今天
-                    is_today = date_str == today
+            for date_str, events in events_by_date.items():
+                for event in events:
+                    importance_level = event.get('importance_level', 1)
+
+                    # 應用重要性篩選
+                    if importance_level not in allowed_levels:
+                        continue
+
+                    # 判斷是否已過
+                    try:
+                        event_datetime_str = f"{date_str} {event.get('時間', '00:00')}"
+                        event_datetime = datetime.strptime(event_datetime_str, '%Y-%m-%d %H:%M')
+                        is_past = event_datetime < now
+                    except:
+                        is_past = False
+
+                    # 應用已過事件篩選
+                    if is_past and not show_past:
+                        continue
 
                     # 格式化日期顯示
                     try:
                         date_obj = datetime.strptime(date_str, '%Y-%m-%d')
                         weekday = date_obj.strftime('%a')
-                        if is_today:
-                            display_date = f"**今天**\n\n{date_str}\n\n({weekday})"
+                        if date_str == today:
+                            date_display = f"📅 今天 ({weekday})"
                         else:
-                            display_date = f"{date_str}\n\n({weekday})"
+                            date_display = f"{date_str} ({weekday})"
                     except:
-                        display_date = date_str
+                        date_display = date_str
 
-                    # 日期標題（使用不同顏色區分今天）
-                    if is_today:
-                        st.markdown(f"### 🌟 {display_date}")
-                    else:
-                        st.markdown(f"### 📅 {display_date}")
+                    # 生成新聞連結
+                    news_links = TradingEconomicsClient.generate_news_links(event)
+                    links_display = ""
+                    if news_links:
+                        link_parts = []
+                        for source, url in news_links.items():
+                            if source == 'trading_economics':
+                                link_parts.append(f"[📊TE]({url})")
+                            elif source == 'google_news':
+                                link_parts.append(f"[🔍GN]({url})")
+                            elif source == 'cnyes':
+                                link_parts.append(f"[📰鉅亨]({url})")
+                            elif source == 'ctee':
+                                link_parts.append(f"[📰工商]({url})")
+                        links_display = " ".join(link_parts)
 
-                    # 渲染事件列表
-                    for event in events:
-                        importance_level = event.get('importance_level', 1)
+                    table_data.append({
+                        "日期": date_display,
+                        "時間": event.get('時間', '-'),
+                        "事件": event.get('事件', 'N/A'),
+                        "⭐": event.get('重要性', '⭐'),
+                        "預期": event.get('預期', '-'),
+                        "前值": event.get('前值', '-'),
+                        "實際": event.get('實際', '-'),
+                        "新聞": links_display,
+                        "_importance": importance_level,  # 隱藏欄位用於排序
+                        "_is_past": is_past  # 隱藏欄位用於樣式
+                    })
 
-                        # 根據重要性顯示不同的圖標
-                        if importance_level >= 3:
-                            icon = "🔴"  # 高重要性
+            if not table_data:
+                st.info("沒有符合篩選條件的事件")
+            else:
+                # 顯示表格
+                st.markdown("### 📊 經濟事件總覽")
+
+                # 按日期和時間排序
+                table_data_sorted = sorted(table_data, key=lambda x: (x["日期"], x["時間"]))
+
+                # 分組顯示（按日期）
+                current_date = None
+                for row in table_data_sorted:
+                    row_date = row["日期"]
+
+                    # 日期標題（sticky header風格）
+                    if row_date != current_date:
+                        current_date = row_date
+                        is_today_row = "今天" in row_date
+
+                        if is_today_row:
+                            st.markdown(f'<div class="economic-calendar-today"><h4 style="margin: 0;">🌟 {row_date}</h4></div>', unsafe_allow_html=True)
                         else:
-                            icon = "🔵"  # 一般重要性
+                            st.markdown(f'<div class="economic-calendar-date"><h4 style="margin: 0;">📅 {row_date}</h4></div>', unsafe_allow_html=True)
 
-                        # 使用 expander 顯示事件詳情
-                        with st.expander(f"{icon} {event.get('事件', 'N/A')}", expanded=False):
-                            # 時間
-                            st.caption(f"⏰ {event.get('時間', 'N/A')}")
+                    # 事件行（根據重要性使用不同樣式）
+                    importance = row["_importance"]
+                    is_past = row["_is_past"]
 
-                            # 重要性和預期
-                            col1, col2 = st.columns(2)
-                            with col1:
-                                st.caption(f"{event.get('重要性', '⭐')}")
-                            with col2:
-                                st.caption(f"預期: {event.get('預期', '-')}")
+                    # 根據重要性選擇 CSS class
+                    if importance >= 3:
+                        css_class = "event-high-importance"
+                    elif importance == 2:
+                        css_class = "event-medium-importance"
+                    else:
+                        css_class = "event-low-importance"
 
-                            # 新聞連結
-                            news_links = TradingEconomicsClient.generate_news_links(event)
-                            if news_links:
-                                st.caption("📰 相關新聞:")
-                                link_cols = st.columns(len(news_links))
+                    # 建立事件行
+                    with st.container():
+                        st.markdown(f'<div class="{css_class}">', unsafe_allow_html=True)
 
-                                for link_idx, (source, url) in enumerate(news_links.items()):
-                                    with link_cols[link_idx]:
-                                        if source == 'trading_economics':
-                                            st.markdown(f"[📊 TE]({url})")
-                                        elif source == 'google_news':
-                                            st.markdown(f"[🔍 GN]({url})")
-                                        elif source == 'cnyes':
-                                            st.markdown(f"[📰 鉅亨]({url})")
-                                        elif source == 'ctee':
-                                            st.markdown(f"[📰 工商]({url})")
+                        col1, col2, col3, col4, col5, col6 = st.columns([1, 5, 1, 1.5, 1.5, 2])
 
-                    st.markdown("---")
+                        with col1:
+                            st.caption(row["時間"])
+
+                        with col2:
+                            # 根據重要性顯示不同顏色和樣式
+                            event_name = row["事件"]
+                            if importance >= 3:
+                                st.markdown(f"**{event_name}** 🔴")
+                            elif importance == 2:
+                                st.write(event_name)
+                            else:
+                                st.markdown(f"<span style='opacity: 0.7'>{event_name}</span>", unsafe_allow_html=True)
+
+                        with col3:
+                            st.caption(row["⭐"])
+
+                        with col4:
+                            forecast_val = row['預期']
+                            st.caption(f"預: {forecast_val}")
+
+                        with col5:
+                            previous_val = row['前值']
+                            st.caption(f"前: {previous_val}")
+
+                        with col6:
+                            if row["新聞"]:
+                                st.markdown(row["新聞"], unsafe_allow_html=False)
+
+                        st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown("---")
 
