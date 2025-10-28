@@ -13,44 +13,44 @@ class Theme:
 
     # ========== 深色主題（專業金融風格 - 類似 Bloomberg Terminal） ==========
     DARK = {
-        # 背景色
-        'bg_primary': '#0a0e27',        # 主背景（深藍黑）
-        'bg_secondary': '#141b2d',      # 次要背景
-        'bg_card': '#1a2332',           # 卡片背景
-        'bg_sidebar': '#0d1117',        # 側邊欄背景
-        'bg_header': '#161d2f',         # 頭部背景
+        # 背景色（更暗，降低亮度）
+        'bg_primary': '#000000',        # 主背景（純黑）
+        'bg_secondary': '#0a0a0a',      # 次要背景（接近黑）
+        'bg_card': '#111111',           # 卡片背景（深灰黑）
+        'bg_sidebar': '#050505',        # 側邊欄背景（極深灰）
+        'bg_header': '#0a0a0a',         # 頭部背景
 
-        # 前景色（文字）
-        'text_primary': '#e6e8ec',      # 主要文字
-        'text_secondary': '#a0a7b4',    # 次要文字
-        'text_muted': '#6c7589',        # 弱化文字
-        'text_inverse': '#0a0e27',      # 反色文字（用於亮色背景）
+        # 前景色（文字 - 降低亮度）
+        'text_primary': '#b8bcc4',      # 主要文字（中等灰，更柔和）
+        'text_secondary': '#7a8088',    # 次要文字（暗灰）
+        'text_muted': '#555555',        # 弱化文字（更暗）
+        'text_inverse': '#ffffff',      # 反色文字（用於亮色背景）
 
-        # 強調色
-        'accent_primary': '#0066ff',    # 主強調色（科技藍）
-        'accent_secondary': '#00a6ff',  # 次要強調色（亮藍）
-        'accent_gold': '#ffa500',       # 金色（用於重要指標）
+        # 強調色（降低飽和度和亮度）
+        'accent_primary': '#0055cc',    # 主強調色（更暗的藍）
+        'accent_secondary': '#0088dd',  # 次要強調色
+        'accent_gold': '#cc8800',       # 金色（更暗）
 
-        # 數據色（金融專用）
-        'data_positive': '#00c853',     # 上漲/正值（綠）
-        'data_negative': '#ff5252',     # 下跌/負值（紅）
-        'data_neutral': '#a0a7b4',      # 持平/中性（灰）
-        'data_warning': '#ffc107',      # 警告（黃）
+        # 數據色（金融專用 - 降低亮度）
+        'data_positive': '#00a043',     # 上漲/正值（更暗的綠）
+        'data_negative': '#cc3333',     # 下跌/負值（更暗的紅）
+        'data_neutral': '#7a8088',      # 持平/中性（灰）
+        'data_warning': '#cc9900',      # 警告（暗黃）
 
-        # 邊框和分隔線
-        'border_light': '#2d3748',      # 淺邊框
-        'border_medium': '#3d4758',     # 中等邊框
-        'border_heavy': '#4d5768',      # 重邊框
+        # 邊框和分隔線（更暗）
+        'border_light': '#1a1a1a',      # 淺邊框
+        'border_medium': '#222222',     # 中等邊框
+        'border_heavy': '#333333',      # 重邊框
 
-        # 陰影
-        'shadow_sm': 'rgba(0, 0, 0, 0.3)',
-        'shadow_md': 'rgba(0, 0, 0, 0.5)',
-        'shadow_lg': 'rgba(0, 0, 0, 0.7)',
+        # 陰影（更深）
+        'shadow_sm': 'rgba(0, 0, 0, 0.5)',
+        'shadow_md': 'rgba(0, 0, 0, 0.7)',
+        'shadow_lg': 'rgba(0, 0, 0, 0.9)',
 
-        # 特殊效果
-        'glow_blue': 'rgba(0, 102, 255, 0.3)',
-        'glow_gold': 'rgba(255, 165, 0, 0.3)',
-        'overlay': 'rgba(10, 14, 39, 0.8)',
+        # 特殊效果（降低亮度）
+        'glow_blue': 'rgba(0, 85, 204, 0.2)',
+        'glow_gold': 'rgba(204, 136, 0, 0.2)',
+        'overlay': 'rgba(0, 0, 0, 0.9)',
     }
 
     # ========== 淺色主題（現代簡約風格）==========
@@ -512,6 +512,55 @@ class Theme:
 
             .metric-card, .market-card, .feature-card, .calendar-event {{
                 animation: fadeIn 0.5s ease-out;
+            }}
+
+            /* ========== Streamlit 核心文字元件明確樣式 ========== */
+            /* 強制所有 Streamlit markdown 文字使用主題顏色 */
+            .stMarkdown, .stMarkdown p, .stMarkdown span, .stMarkdown div {{
+                color: {colors['text_primary']} !important;
+            }}
+
+            .stMarkdown h1, .stMarkdown h2, .stMarkdown h3,
+            .stMarkdown h4, .stMarkdown h5, .stMarkdown h6 {{
+                color: {colors['text_primary']} !important;
+            }}
+
+            /* Streamlit 標題元件 */
+            h1, h2, h3, h4, h5, h6 {{
+                color: {colors['text_primary']} !important;
+            }}
+
+            /* Streamlit 段落和文字 */
+            p, span, div {{
+                color: {colors['text_primary']} !important;
+            }}
+
+            /* Streamlit caption */
+            .stCaptionContainer, .caption {{
+                color: {colors['text_secondary']} !important;
+            }}
+
+            /* Streamlit code blocks */
+            .stCodeBlock, code {{
+                background-color: {colors['bg_secondary']} !important;
+                color: {colors['text_primary']} !important;
+            }}
+
+            /* Streamlit info/success/warning/error boxes */
+            .stAlert {{
+                background-color: {colors['bg_card']} !important;
+                color: {colors['text_primary']} !important;
+            }}
+
+            /* Streamlit expander */
+            .streamlit-expanderHeader {{
+                background-color: {colors['bg_card']} !important;
+                color: {colors['text_primary']} !important;
+            }}
+
+            .streamlit-expanderContent {{
+                background-color: {colors['bg_secondary']} !important;
+                color: {colors['text_primary']} !important;
             }}
 
             /* ========== 響應式設計 ========== */

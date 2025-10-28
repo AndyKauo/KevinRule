@@ -646,18 +646,13 @@ with tabs[2]:
         else:
             st.info(f"💡 橫向滾動查看所有日期的事件  |  共 {len(events_by_date)} 天 {sum(len(events) for events in events_by_date.values())} 個事件")
 
-            # 使用 Streamlit columns 實現橫向布局（簡化 HTML 結構）
+            # 使用 100% Streamlit 原生組件（無 HTML）
             from backend.data_sources.trading_economics_client import TradingEconomicsClient
 
-            # 創建橫向滾動容器
-            st.markdown('<div style="overflow-x: auto; white-space: nowrap; padding: 1rem 0;">', unsafe_allow_html=True)
-
             today = datetime.now().strftime('%Y-%m-%d')
-
-            # 使用 Streamlit columns（最多顯示 14 天）
             date_list = list(events_by_date.items())
 
-            # 為每個日期創建列
+            # 使用 Streamlit columns 實現橫向布局
             cols = st.columns(len(date_list))
 
             for idx, (date_str, events) in enumerate(date_list):
@@ -670,68 +665,58 @@ with tabs[2]:
                         date_obj = datetime.strptime(date_str, '%Y-%m-%d')
                         weekday = date_obj.strftime('%a')
                         if is_today:
-                            display_date = f"<b>今天</b><br>{date_str}<br>({weekday})"
+                            display_date = f"**今天**\n\n{date_str}\n\n({weekday})"
                         else:
-                            display_date = f"{date_str}<br>({weekday})"
+                            display_date = f"{date_str}\n\n({weekday})"
                     except:
                         display_date = date_str
 
-                    # 日期標題顏色（今天用金色，其他用藍色）
-                    header_bg = "linear-gradient(135deg, #ffd700 0%, #ff9800 100%)" if is_today else "linear-gradient(135deg, #00d4ff 0%, #0088cc 100%)"
+                    # 日期標題（使用不同顏色區分今天）
+                    if is_today:
+                        st.markdown(f"### 🌟 {display_date}")
+                    else:
+                        st.markdown(f"### 📅 {display_date}")
 
-                    # 構建日期列 HTML（簡化版：3 層嵌套 + 全內聯樣式）
-                    date_html = f'''
-                    <div style="min-width: 260px; max-width: 260px; background: #262730; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.2); margin-bottom: 1rem;">
-                        <div style="background: {header_bg}; color: white; padding: 0.8rem; text-align: center; font-weight: 600; font-size: 0.95rem;">
-                            {display_date}
-                        </div>
-                        <div style="padding: 0.75rem; background: #1a1d24; min-height: 200px;">
-                    '''
-
-                    # 事件卡片
+                    # 渲染事件列表
                     for event in events:
                         importance_level = event.get('importance_level', 1)
 
-                        # 高重要性事件使用紅色邊框
-                        border_color = "#ff6b6b" if importance_level >= 3 else "#00d4ff"
-                        border_width = "4px" if importance_level >= 3 else "3px"
+                        # 根據重要性顯示不同的圖標
+                        if importance_level >= 3:
+                            icon = "🔴"  # 高重要性
+                        else:
+                            icon = "🔵"  # 一般重要性
 
-                        # 生成新聞連結（簡化版：內聯樣式）
-                        news_links = TradingEconomicsClient.generate_news_links(event)
-                        links_html = ''
+                        # 使用 expander 顯示事件詳情
+                        with st.expander(f"{icon} {event.get('事件', 'N/A')}", expanded=False):
+                            # 時間
+                            st.caption(f"⏰ {event.get('時間', 'N/A')}")
 
-                        if news_links:
-                            links_html = '<div style="display: flex; gap: 0.3rem; margin-top: 0.5rem; flex-wrap: wrap;">'
-                            if 'trading_economics' in news_links:
-                                links_html += f'<a href="{news_links["trading_economics"]}" target="_blank" style="background: #0066ff; color: white; padding: 3px 8px; border-radius: 3px; font-size: 0.7rem; text-decoration: none; display: inline-block;">📊 TE</a>'
-                            if 'google_news' in news_links:
-                                links_html += f'<a href="{news_links["google_news"]}" target="_blank" style="background: #34a853; color: white; padding: 3px 8px; border-radius: 3px; font-size: 0.7rem; text-decoration: none; display: inline-block;">🔍 GN</a>'
-                            if 'cnyes' in news_links:
-                                links_html += f'<a href="{news_links["cnyes"]}" target="_blank" style="background: #ff9800; color: white; padding: 3px 8px; border-radius: 3px; font-size: 0.7rem; text-decoration: none; display: inline-block;">📰 鉅亨</a>'
-                            if 'ctee' in news_links:
-                                links_html += f'<a href="{news_links["ctee"]}" target="_blank" style="background: #e91e63; color: white; padding: 3px 8px; border-radius: 3px; font-size: 0.7rem; text-decoration: none; display: inline-block;">📰 工商</a>'
-                            links_html += '</div>'
+                            # 重要性和預期
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                st.caption(f"{event.get('重要性', '⭐')}")
+                            with col2:
+                                st.caption(f"預期: {event.get('預期', '-')}")
 
-                        # 事件卡片 HTML（簡化：減少嵌套）
-                        date_html += f'''
-                        <div style="background: #262730; padding: 0.8rem; border-radius: 6px; border-left: {border_width} solid {border_color}; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 0.5rem;">
-                            <div style="font-size: 0.9rem; font-weight: 600; color: #fafafa; margin-bottom: 0.4rem; line-height: 1.3;">{event.get('事件', 'N/A')}</div>
-                            <div style="font-size: 0.8rem; color: #a0aec0; margin-bottom: 0.3rem;">⏰ {event.get('時間', 'N/A')}</div>
-                            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: #cbd5e0; margin-top: 0.4rem;">
-                                <span style="font-size: 0.9rem;">{event.get('重要性', '⭐')}</span>
-                                <span style="font-size: 0.75rem; color: #a0aec0;">預: {event.get('預期', '-')}</span>
-                            </div>
-                            {links_html}
-                        </div>
-                        '''
+                            # 新聞連結
+                            news_links = TradingEconomicsClient.generate_news_links(event)
+                            if news_links:
+                                st.caption("📰 相關新聞:")
+                                link_cols = st.columns(len(news_links))
 
-                    # 結束日期列
-                    date_html += '</div></div>'
+                                for link_idx, (source, url) in enumerate(news_links.items()):
+                                    with link_cols[link_idx]:
+                                        if source == 'trading_economics':
+                                            st.markdown(f"[📊 TE]({url})")
+                                        elif source == 'google_news':
+                                            st.markdown(f"[🔍 GN]({url})")
+                                        elif source == 'cnyes':
+                                            st.markdown(f"[📰 鉅亨]({url})")
+                                        elif source == 'ctee':
+                                            st.markdown(f"[📰 工商]({url})")
 
-                    # 渲染單個日期列
-                    st.markdown(date_html, unsafe_allow_html=True)
-
-            st.markdown('</div>', unsafe_allow_html=True)
+                    st.markdown("---")
 
         st.markdown("---")
 
