@@ -1,0 +1,43 @@
+# Core Framework
+streamlit>=1.30.0
+python-dotenv>=1.0.0
+
+# FinLab API
+finlab>=0.3.0
+
+# Market Data APIs
+yfinance>=0.2.40  # Yahoo Finance（美股、國際市場、加密貨幣、匯率）
+tradingeconomics>=0.3.7  # Trading Economics（經濟日曆）
+
+# Data Processing
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Database
+duckdb>=0.9.0
+
+# Technical Indicators
+# pandas-ta>=0.3.14b  # 需要 Python 3.12+，已改用純 pandas 實現（見 backend/indicators/technical_indicators.py）
+
+# AI Integration
+anthropic>=0.18.0
+
+# Notifications
+requests>=2.31.0  # For LINE Notify
+# python-telegram-bot>=20.0  # Alternative notification (暫時停用)
+
+# Visualization
+plotly>=5.18.0
+matplotlib>=3.8.0
+
+# Utilities
+pyyaml>=6.0
+python-dateutil>=2.8.2
+pytz>=2023.3
+
+# Performance
+# numba>=0.58.0  # Optional: speed up calculations (暫時停用)
+
+# Testing (optional)
+# pytest>=7.4.0  # 暫時停用
+# pytest-cov>=4.1.0  # 暫時停用
