@@ -34,6 +34,28 @@ if 'theme' not in st.session_state:
 # ========== 應用主題 CSS ==========
 st.markdown(Theme.generate_css(st.session_state.theme), unsafe_allow_html=True)
 
+# ========== 側邊欄標題 CSS（修復多頁應用不繼承主頁 CSS）==========
+st.markdown("""
+<style>
+/* 隱藏 Streamlit 自動生成的側邊欄標題 */
+[data-testid="stSidebarNav"] {
+    display: none !important;
+}
+
+/* 在側邊欄頂部添加自定義導航標題 */
+[data-testid="stSidebar"]::before {
+    content: "🧭 導航";
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-color);
+    display: block;
+    padding: 1.5rem 1rem 1rem 1rem;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+    margin-bottom: 1rem;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # ========== 頁面標題 ==========
 
 st.title("📊 我的持股")

@@ -33,6 +33,28 @@ if 'theme' not in st.session_state:
 # ========== 應用主題 CSS ==========
 st.markdown(Theme.generate_css(st.session_state.theme), unsafe_allow_html=True)
 
+# ========== 側邊欄標題 CSS（修復多頁應用不繼承主頁 CSS）==========
+st.markdown("""
+<style>
+/* 隱藏 Streamlit 自動生成的側邊欄標題 */
+[data-testid="stSidebarNav"] {
+    display: none !important;
+}
+
+/* 在側邊欄頂部添加自定義導航標題 */
+[data-testid="stSidebar"]::before {
+    content: "🧭 導航";
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-color);
+    display: block;
+    padding: 1.5rem 1rem 1rem 1rem;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+    margin-bottom: 1rem;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # ========== 頁面標題 ==========
 
 st.title("🏠 市場總覽")
@@ -646,8 +668,9 @@ with tabs[2]:
         else:
             from backend.data_sources.trading_economics_client import TradingEconomicsClient
 
-            # 計算總事件數
-            total_events = sum(len(events) for events in events_by_date.values())
+            # 計算總事件數（過濾前）
+            original_days = len(events_by_date)
+            original_events = sum(len(events) for events in events_by_date.values())
 
             # 過濾器選項
             col_filter1, col_filter2, col_filter3 = st.columns([2, 2, 3])
@@ -664,7 +687,8 @@ with tabs[2]:
                 show_past = st.checkbox("顯示已過事件", value=False, key="show_past")
 
             with col_filter3:
-                st.info(f"📊 共 {len(events_by_date)} 天 {total_events} 個事件")
+                # 先顯示原始統計，稍後會更新為過濾後的統計
+                stats_placeholder = st.empty()
 
             # 準備表格數據
             table_data = []
@@ -705,21 +729,26 @@ with tabs[2]:
                     except:
                         date_display = date_str
 
-                    # 生成新聞連結
-                    news_links = TradingEconomicsClient.generate_news_links(event)
+                    # 生成新聞連結（優先使用 Investing.com 事件連結）
                     links_display = ""
-                    if news_links:
-                        link_parts = []
-                        for source, url in news_links.items():
-                            if source == 'trading_economics':
-                                link_parts.append(f"[📊TE]({url})")
-                            elif source == 'google_news':
-                                link_parts.append(f"[🔍GN]({url})")
-                            elif source == 'cnyes':
-                                link_parts.append(f"[📰鉅亨]({url})")
-                            elif source == 'ctee':
-                                link_parts.append(f"[📰工商]({url})")
-                        links_display = " ".join(link_parts)
+                    event_url = event.get('event_url', '')
+
+                    if event_url:
+                        # 如果有 Investing.com 事件連結，優先使用
+                        links_display = f"[🔍詳情]({event_url})"
+                    else:
+                        # 回退到 Google 新聞搜尋
+                        news_links = TradingEconomicsClient.generate_news_links(event)
+                        if news_links:
+                            link_parts = []
+                            for source, url in news_links.items():
+                                if source == 'google_news':
+                                    link_parts.append(f"[🔍GN]({url})")
+                                elif source == 'cnyes':
+                                    link_parts.append(f"[📰鉅亨]({url})")
+                                elif source == 'ctee':
+                                    link_parts.append(f"[📰工商]({url})")
+                            links_display = " ".join(link_parts)
 
                     table_data.append({
                         "日期": date_display,
@@ -734,8 +763,25 @@ with tabs[2]:
                         "_is_past": is_past  # 隱藏欄位用於樣式
                     })
 
+            # 計算過濾後的統計數據
+            if table_data:
+                filtered_days = len(set(row["日期"] for row in table_data))
+                filtered_events = len(table_data)
+            else:
+                filtered_days = 0
+                filtered_events = 0
+
+            # 更新統計顯示
+            with stats_placeholder:
+                if filtered_events < original_events:
+                    # 有過濾時，顯示對比
+                    st.info(f"📊 API 返回: {original_days} 天 {original_events} 個事件 | 顯示: {filtered_days} 天 {filtered_events} 個事件")
+                else:
+                    # 無過濾時，只顯示總數
+                    st.info(f"📊 共 {original_days} 天 {original_events} 個事件")
+
             if not table_data:
-                st.info("沒有符合篩選條件的事件")
+                st.warning("⚠️ 沒有符合篩選條件的事件，請調整篩選器")
             else:
                 # 顯示表格
                 st.markdown("### 📊 經濟事件總覽")

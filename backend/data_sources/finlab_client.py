@@ -16,10 +16,16 @@ from backend.etl.finlab_compat import convert_to_pandas, is_finlab_dataframe
 class FinLabClient:
     """FinLab API 客戶端"""
 
-    def __init__(self):
-        """初始化FinLab客戶端"""
+    def __init__(self, progress_callback=None):
+        """
+        初始化FinLab客戶端
+
+        Args:
+            progress_callback: 可選的進度回調函數，用於更新 UI 進度顯示
+        """
         self._ensure_login()
         self._data = None
+        self.progress_callback = progress_callback
 
     def _ensure_login(self):
         """確保FinLab已登入"""
@@ -33,23 +39,48 @@ class FinLabClient:
             self._data = data
         return self._data
 
-    def _get_and_convert(self, field: str) -> pd.DataFrame:
+    def _update_progress(self, message: str):
         """
-        獲取數據並轉換為pandas DataFrame
+        更新進度（同時輸出到終端和回調 UI）
+
+        Args:
+            message: 進度訊息
+        """
+        # 保留終端 DEBUG 輸出
+        print(message)
+
+        # 如果有提供回調函數，同時更新 UI
+        if self.progress_callback:
+            self.progress_callback(message)
+
+    def _get_and_convert(self, field: str):
+        """
+        獲取 FinLab 數據（保留 FinlabDataFrame 原生格式）
 
         Args:
             field: 數據欄位 (格式: 'table:field')
 
         Returns:
-            pandas DataFrame
+            FinlabDataFrame（保留原生格式以利用自動對齊功能）
+
+        重要提示:
+            FinlabDataFrame 在進行運算時會自動對齊不同頻率的數據：
+            - index 取聯集（保留所有時間點）
+            - column 取交集（只保留共同股票）
+            不要轉換為 pandas DataFrame，否則會失去自動對齊能力！
+
+        參考: reference/finlab_site/finlab_docs_md/reference/dataframe/index.md
         """
         try:
             data = self._get_data_module()
             result = data.get(field)
 
-            # 轉換為pandas DataFrame
-            if is_finlab_dataframe(result):
-                result = convert_to_pandas(result)
+            # ✅ 直接返回 FinlabDataFrame，保留自動對齊能力
+            # ❌ 不要轉換為 pandas：convert_to_pandas(result)
+            #
+            # 為什麼？當策略中執行 AND 運算時：
+            # - FinlabDataFrame: 自動對齊 index（聯集）和 column（交集）
+            # - pandas DataFrame: 只取交集，容易變成空集合
 
             return result
 
@@ -66,7 +97,7 @@ class FinLabClient:
         Returns:
             包含收盤價、開盤價、最高價、最低價、成交量等的字典
         """
-        print("📊 正在獲取價格數據...")
+        self._update_progress("📊 正在獲取價格數據...")
         return {
             'close': self._get_and_convert('price:收盤價'),
             'open': self._get_and_convert('price:開盤價'),
@@ -93,7 +124,7 @@ class FinLabClient:
         Returns:
             市值數據 (單位: 元)
         """
-        print("💰 正在獲取市值數據...")
+        self._update_progress("💰 正在獲取市值數據...")
         return self._get_and_convert('etl:market_value')
 
     # ========== 財務報表數據 ==========
@@ -106,7 +137,7 @@ class FinLabClient:
             包含資產、負債、權益、營收、淨利等的字典
             注意: 所有單位為「仟元」
         """
-        print("📋 正在獲取財務報表數據...")
+        self._update_progress("📋 正在獲取財務報表數據...")
         return {
             # 資產負債表
             'total_assets': self._get_and_convert('financial_statement:資產總額'),
@@ -128,6 +159,9 @@ class FinLabClient:
             'operating_cash_flow': self._get_and_convert('financial_statement:營業活動之淨現金流入_流出'),
             'investing_cash_flow': self._get_and_convert('financial_statement:投資活動之淨現金流入_流出'),
             'financing_cash_flow': self._get_and_convert('financial_statement:籌資活動之淨現金流入_流出'),
+
+            # 每股盈餘
+            'eps': self._get_and_convert('financial_statement:每股盈餘'),
         }
 
     # ========== 月營收數據 ==========
@@ -140,7 +174,7 @@ class FinLabClient:
             包含當月營收的字典
             注意: 單位為「仟元」
         """
-        print("📊 正在獲取月營收數據...")
+        self._update_progress("📊 正在獲取月營收數據...")
         revenue = self._get_and_convert('monthly_revenue:當月營收')
 
         # 計算年增率和月增率
@@ -162,7 +196,7 @@ class FinLabClient:
         Returns:
             包含ROE、ROA、負債比等的字典
         """
-        print("📈 正在獲取基本面指標...")
+        self._update_progress("📈 正在獲取基本面指標...")
         return {
             'roe': self._get_and_convert('fundamental_features:ROE稅後'),
             'roa': self._get_and_convert('fundamental_features:ROA稅後息前'),
@@ -180,7 +214,7 @@ class FinLabClient:
         Returns:
             殖利率數據 (單位: %)
         """
-        print("💰 正在獲取殖利率數據...")
+        self._update_progress("💰 正在獲取殖利率數據...")
         dividend_yield = self._get_and_convert('price_earning_ratio:殖利率(%)')
         # 轉換為小數形式 (%)
         return dividend_yield / 100 if not dividend_yield.empty else pd.DataFrame()
@@ -202,7 +236,7 @@ class FinLabClient:
         Returns:
             包含融資使用率、融券使用率等的字典
         """
-        print("📊 正在獲取融資融券數據...")
+        self._update_progress("📊 正在獲取融資融券數據...")
         return {
             'margin_ratio': self._get_and_convert('margin_transactions:融資使用率'),
             'short_ratio': self._get_and_convert('margin_transactions:融券使用率'),
@@ -221,7 +255,7 @@ class FinLabClient:
         Returns:
             包含外資、投信、自營商買賣超的字典
         """
-        print("💼 正在獲取三大法人買賣超數據...")
+        self._update_progress("💼 正在獲取三大法人買賣超數據...")
         data = self._get_and_convert('institutional_investors_trading_summary:外陸資買賣超股數(不含外資自營商)')
 
         return {
@@ -236,6 +270,66 @@ class FinLabClient:
             'dealer_net': self._get_and_convert('institutional_investors_trading_summary:自營商買賣超股數(自行買賣)'),
         }
 
+    # ========== 公司基本資訊 ==========
+
+    def get_company_info(self) -> Dict[str, pd.Series]:
+        """
+        獲取公司基本資訊
+
+        Returns:
+            包含產業類別等資訊的字典
+            注意: 已將 stock_id 設為 index
+        """
+        self._update_progress("🏢 正在獲取公司基本資訊...")
+        company_info = self._get_and_convert('company_basic_info')
+
+        if not company_info.empty:
+            # 設置 stock_id 為 index（關鍵步驟！）
+            company_info = company_info.set_index('stock_id')
+
+            return {
+                'industry': company_info['產業類別'],
+                'company_name': company_info['公司名稱'],
+                'company_short_name': company_info['公司簡稱'],
+            }
+        else:
+            return {
+                'industry': pd.Series(),
+                'company_name': pd.Series(),
+                'company_short_name': pd.Series(),
+            }
+
+    # ========== 股利數據 ==========
+
+    def get_dividend_data(self) -> pd.DataFrame:
+        """
+        獲取股利數據（Event Table 格式）
+
+        Returns:
+            DataFrame: 除權息資訊公告 (Event Table)
+                - 每行 = 一筆股利公告事件
+                - 重要欄位:
+                  • stock_id: 股票代碼
+                  • 股利所屬期間: 股利年度 (例如: '111年')
+                  • 盈餘分配之股東現金股利(元/股): 現金股利金額
+                  • 除息交易日: 除息日期
+                  • 公告日期: 公告日期
+
+        注意:
+            - 這是 Type 2 (Event Table) 格式，不是 Type 1 (Time Series)
+            - 需要使用 stock_id 欄位篩選特定股票
+            - 股利所屬期間為民國年，需要轉換為西元年 (民國年 + 1911)
+        """
+        self._update_progress("💰 正在獲取股利數據...")
+
+        dividend_ann = self._get_and_convert('dividend_announcement')
+
+        if dividend_ann.empty:
+            self._log_warning("⚠️  股利數據為空")
+            return pd.DataFrame()
+
+        return dividend_ann
+
     # ========== 篩選器 ==========
 
     def get_filters(self) -> Dict[str, pd.DataFrame]:
@@ -245,7 +339,7 @@ class FinLabClient:
         Returns:
             包含全額交割股、注意股等篩選條件的字典
         """
-        print("🔍 正在獲取篩選條件...")
+        self._update_progress("🔍 正在獲取篩選條件...")
         return {
             'exclude_cash_delivery': self._get_and_convert('etl:full_cash_delivery_stock_filter'),
             'exclude_attention': self._get_and_convert('etl:noticed_stock_filter'),
@@ -260,9 +354,9 @@ class FinLabClient:
         Returns:
             包含所有數據的字典
         """
-        print("=" * 70)
-        print("📦 開始獲取所有數據...")
-        print("=" * 70)
+        self._update_progress("=" * 70)
+        self._update_progress("📦 開始獲取所有數據...")
+        self._update_progress("=" * 70)
 
         data_dict = {}
 
@@ -296,19 +390,27 @@ class FinLabClient:
             margin = self.get_margin_data()
             data_dict.update(margin)
 
+            # 公司基本資訊（產業分類等）
+            company_info = self.get_company_info()
+            data_dict['industry'] = company_info['industry']
+
+            # 股利數據（Event Table）
+            data_dict['dividend_announcement'] = self.get_dividend_data()
+
             # 篩選器
             filters = self.get_filters()
             data_dict.update(filters)
 
-            print()
-            print("=" * 70)
-            print("✅ 所有數據獲取完成!")
-            print("=" * 70)
+            self._update_progress("")
+            self._update_progress("=" * 70)
+            self._update_progress("✅ 所有數據獲取完成!")
+            self._update_progress("=" * 70)
 
             return data_dict
 
         except Exception as e:
-            print(f"❌ 數據獲取過程中發生錯誤: {e}")
+            error_msg = f"❌ 數據獲取過程中發生錯誤: {e}"
+            self._update_progress(error_msg)
             return data_dict
 
 

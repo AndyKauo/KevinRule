@@ -36,6 +36,33 @@ st.set_page_config(
 # ========== 應用主題 CSS ==========
 st.markdown(Theme.generate_css(st.session_state.theme), unsafe_allow_html=True)
 
+# ========== 修復側邊欄標題（CSS 完全隱藏 + 自定義標題）==========
+st.markdown("""
+<style>
+/* 隱藏 Streamlit 自動生成的側邊欄頂部標題 (包括 "app" 文字) */
+[data-testid="stSidebarNav"] {
+    display: none !important;
+}
+
+/* 或者更精確的選擇器 */
+[data-testid="stSidebar"] [data-testid="stSidebarNav"] + div {
+    padding-top: 0 !important;
+}
+
+/* 在側邊欄頂部添加自定義導航標題 */
+[data-testid="stSidebar"]::before {
+    content: "🧭 導航";
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-color);
+    display: block;
+    padding: 1.5rem 1rem 1rem 1rem;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+    margin-bottom: 1rem;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # ========== 主題切換按鈕（右上角）==========
 # 使用自定義 CSS 實現固定位置的主題切換
 st.markdown("""

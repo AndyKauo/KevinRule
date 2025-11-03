@@ -3,29 +3,39 @@ Trading Economics API 客戶端封裝
 Trading Economics API Client Wrapper
 
 使用 tradingeconomics 獲取經濟日曆數據
+如果 API 不可用，則使用 Investing.com 爬蟲作為備用數據源
 """
 
 import pandas as pd
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
 from config.settings import settings
+from backend.data_sources.investing_com_scraper import InvestingComScraper
 
 
 class TradingEconomicsClient:
     """Trading Economics API 客戶端"""
 
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: Optional[str] = None, use_scraper: bool = True):
         """
         初始化 Trading Economics 客戶端
 
         Args:
             api_key: API Key（如果不提供則從 settings 讀取）
+            use_scraper: 是否優先使用 Investing.com 爬蟲（默認 True）
         """
         self.api_key = api_key or settings.trading_economics_api_key
+        self.use_scraper = use_scraper
+        self.scraper = InvestingComScraper() if use_scraper else None
 
         if not self.api_key:
-            print("⚠️  未設定 TRADING_ECONOMICS_API_KEY，經濟日曆功能將無法使用")
-            self.enabled = False
+            print("⚠️  未設定 TRADING_ECONOMICS_API_KEY")
+            if use_scraper:
+                print("✅ 將使用 Investing.com 爬蟲作為數據源")
+                self.enabled = True
+            else:
+                print("❌ 經濟日曆功能將無法使用")
+                self.enabled = False
         else:
             self.enabled = True
             self._login()
@@ -63,7 +73,32 @@ class TradingEconomicsClient:
             經濟事件 DataFrame
         """
         if not self.enabled:
-            print("❌ Trading Economics API 未啟用")
+            print("❌ 經濟日曆功能未啟用")
+            return pd.DataFrame()
+
+        # 優先使用 Investing.com 爬蟲（數據更完整）
+        if self.use_scraper and self.scraper:
+            print(f"📊 使用 Investing.com 爬蟲獲取經濟日曆數據...")
+            try:
+                df = self.scraper.scrape_calendar(days=days)
+
+                # 如果指定了國家，進行過濾
+                if not df.empty and country:
+                    df = df[df['Country'] == country]
+                    print(f"   - 已過濾國家: {country}，剩餘 {len(df)} 個事件")
+
+                if not df.empty:
+                    print(f"✅ Investing.com 爬蟲成功獲取 {len(df)} 個事件")
+                    return df
+                else:
+                    print("⚠️  Investing.com 爬蟲未獲取到數據，嘗試使用 TE API...")
+            except Exception as e:
+                print(f"❌ Investing.com 爬蟲失敗: {e}")
+                print("⚠️  嘗試使用 TE API...")
+
+        # 備用方案：使用 Trading Economics API
+        if not self.api_key:
+            print("❌ Trading Economics API 未設定，且爬蟲失敗")
             return pd.DataFrame()
 
         try:
@@ -75,13 +110,19 @@ class TradingEconomicsClient:
             if not end_date:
                 end_date = (datetime.now() + timedelta(days=days)).strftime('%Y-%m-%d')
 
-            print(f"📅 正在獲取經濟日曆 ({start_date} 至 {end_date})...")
+            print(f"\n{'='*60}")
+            print(f"🔍 [DEBUG] API 請求參數:")
+            print(f"   - country: {country}")
+            print(f"   - start_date: {start_date}")
+            print(f"   - end_date: {end_date}")
+            print(f"   - days 參數: {days}")
+            print(f"{'='*60}\n")
 
-            # 獲取經濟日曆
-            if country:
-                calendar = te.getCalendarData(country=country, initDate=start_date, endDate=end_date)
-            else:
-                calendar = te.getCalendarData(initDate=start_date, endDate=end_date)
+            print(f"📅 正在使用 TE API 獲取經濟日曆 ({start_date} 至 {end_date})...")
+
+            # 獲取經濟日曆（根據官方文檔，不傳遞 country 參數以獲取所有國家數據）
+            # 參考：https://docs.tradingeconomics.com/economic_calendar/
+            calendar = te.getCalendarData(initDate=start_date, endDate=end_date)
 
             if calendar is None or (isinstance(calendar, list) and len(calendar) == 0):
                 print("⚠️  未獲取到經濟事件")
@@ -93,12 +134,33 @@ class TradingEconomicsClient:
             else:
                 df = calendar
 
-            print(f"✅ 獲取到 {len(df)} 個經濟事件")
+            print(f"\n{'='*60}")
+            print(f"📊 [DEBUG] API 返回原始數據:")
+            print(f"   - 總事件數: {len(df)}")
+
+            if not df.empty and 'Date' in df.columns:
+                # 提取所有日期
+                dates = df['Date'].apply(lambda x: str(x)[:10] if pd.notna(x) else 'N/A').unique()
+                print(f"   - 涵蓋日期: {sorted([d for d in dates if d != 'N/A'])}")
+                print(f"   - 日期數量: {len([d for d in dates if d != 'N/A'])} 天")
+
+            if not df.empty:
+                print(f"   - 數據欄位: {list(df.columns)}")
+                print(f"\n   - 前3筆原始數據樣本:")
+                for idx, row in df.head(3).iterrows():
+                    date_val = row.get('Date', 'N/A')
+                    event_val = row.get('Event', 'N/A')
+                    country_val = row.get('Country', 'N/A')
+                    print(f"     [{idx}] {date_val} | {country_val} | {event_val}")
+
+            print(f"{'='*60}\n")
+
+            print(f"✅ TE API 獲取到 {len(df)} 個經濟事件")
 
             return df
 
         except Exception as e:
-            print(f"❌ 獲取經濟日曆失敗: {e}")
+            print(f"❌ TE API 獲取經濟日曆失敗: {e}")
             return pd.DataFrame()
 
     def format_events(
@@ -119,7 +181,14 @@ class TradingEconomicsClient:
         if df.empty:
             return []
 
+        print(f"\n{'='*60}")
+        print(f"🔍 [DEBUG] 開始格式化事件:")
+        print(f"   - 輸入事件數: {len(df)}")
+        print(f"   - 重要性篩選: {importance_filter}")
+
         events = []
+        skipped_empty = 0
+        skipped_importance = 0
 
         for _, row in df.iterrows():
             try:
@@ -128,26 +197,19 @@ class TradingEconomicsClient:
 
                 # 跳過空事件名稱
                 if not event_name or event_name == 'N/A' or str(event_name).strip() == '':
+                    skipped_empty += 1
                     continue
 
-                # 檢查是否至少有一個有效的數據欄位（預期、前值、實際）
+                # 提取數據欄位（預期、前值、實際）
+                # 注意：不強制要求這些欄位有值，允許顯示"待公布"的未來事件
                 forecast = row.get('Forecast')
                 previous = row.get('Previous')
                 actual = row.get('Actual')
 
-                # 如果所有數據欄位都是空的或 NaN，跳過這個事件
-                has_data = (
-                    (pd.notna(forecast) and str(forecast).strip() not in ['', 'nan', 'None']) or
-                    (pd.notna(previous) and str(previous).strip() not in ['', 'nan', 'None']) or
-                    (pd.notna(actual) and str(actual).strip() not in ['', 'nan', 'None'])
-                )
-
-                if not has_data:
-                    continue
-
                 # 篩選重要性
                 importance = row.get('Importance', 1)
                 if importance_filter and importance < importance_filter:
+                    skipped_importance += 1
                     continue
 
                 # 格式化日期時間
@@ -189,7 +251,8 @@ class TradingEconomicsClient:
                     '實際': str(actual) if pd.notna(actual) else '-',
                     'importance_level': int(importance),
                     'country': country,  # 保留國家信息用於新聞連結
-                    'event_name_raw': event_name  # 保留原始事件名稱用於新聞連結
+                    'event_name_raw': event_name,  # 保留原始事件名稱用於新聞連結
+                    'event_url': row.get('EventURL', '')  # 保留事件連結（來自 Investing.com）
                 }
 
                 events.append(event)
@@ -197,6 +260,13 @@ class TradingEconomicsClient:
             except Exception as e:
                 print(f"⚠️  格式化事件失敗: {e}")
                 continue
+
+        print(f"\n📊 [DEBUG] 格式化結果:")
+        print(f"   - 成功格式化: {len(events)} 個事件")
+        print(f"   - 跳過空事件: {skipped_empty} 個")
+        print(f"   - 跳過低重要性: {skipped_importance} 個")
+        print(f"   - 總處理: {len(df)} 個")
+        print(f"{'='*60}\n")
 
         return events
 
@@ -319,19 +389,12 @@ class TradingEconomicsClient:
 
         links = {}
 
-        # 1. Trading Economics 官網連結
-        if country and event_name:
-            # 將國家名稱和事件名稱轉換為 Trading Economics URL 格式
-            country_slug = country.lower().replace(' ', '-')
-            event_slug = event_name.lower().replace(' ', '-').replace('/', '-')
-            links['trading_economics'] = f"https://tradingeconomics.com/{country_slug}/{event_slug}"
-
-        # 2. Google 新聞搜尋連結
+        # 1. Google 新聞搜尋連結（最可靠的新聞來源）
         search_query = f"{country} {event_name}" if country else event_name
         encoded_search = urllib.parse.quote(search_query)
         links['google_news'] = f"https://news.google.com/search?q={encoded_search}&hl=zh-TW"
 
-        # 3. 台灣財經媒體連結（僅在相關時顯示）
+        # 2. 台灣財經媒體連結（僅在相關時顯示）
         taiwan_related = country in ['Taiwan', 'China'] or any(keyword in event_name.lower() for keyword in ['taiwan', 'china', 'asia'])
 
         if taiwan_related:
