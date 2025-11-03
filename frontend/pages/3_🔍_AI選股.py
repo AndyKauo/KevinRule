@@ -36,24 +36,28 @@ if 'theme' not in st.session_state:
 # ========== 應用主題 CSS ==========
 st.markdown(Theme.generate_css(st.session_state.theme), unsafe_allow_html=True)
 
-# ========== 側邊欄標題 CSS（修復多頁應用不繼承主頁 CSS）==========
+# ========== 側邊欄導航樣式優化 ==========
 st.markdown("""
 <style>
-/* 隱藏 Streamlit 自動生成的側邊欄標題 */
+/* 優化側邊欄導航樣式 */
 [data-testid="stSidebarNav"] {
-    display: none !important;
+    padding-top: 1rem;
 }
 
-/* 在側邊欄頂部添加自定義導航標題 */
-[data-testid="stSidebar"]::before {
-    content: "🧭 導航";
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: var(--text-color);
-    display: block;
-    padding: 1.5rem 1rem 1rem 1rem;
-    border-bottom: 1px solid rgba(128, 128, 128, 0.2);
-    margin-bottom: 1rem;
+/* 優化導航連結樣式 */
+[data-testid="stSidebarNav"] ul {
+    padding: 0;
+}
+
+[data-testid="stSidebarNav"] a {
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    margin-bottom: 0.25rem;
+    transition: background-color 0.2s;
+}
+
+[data-testid="stSidebarNav"] a:hover {
+    background-color: rgba(128, 128, 128, 0.1);
 }
 </style>
 """, unsafe_allow_html=True)

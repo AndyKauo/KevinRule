@@ -89,10 +89,6 @@ with col_right:
 # ========== 側邊欄 ==========
 
 with st.sidebar:
-    st.image("https://via.placeholder.com/300x100/1f77b4/FFFFFF?text=KevinRule", width='stretch')
-
-    st.markdown("---")
-
     st.markdown("### 📊 系統狀態")
 
     # 檢查配置
@@ -104,13 +100,6 @@ with st.sidebar:
         st.error("❌ 系統配置不完整")
         for error in errors:
             st.warning(error)
-
-    st.markdown("---")
-
-    st.markdown("### 📚 快速連結")
-    st.markdown("- [FinLab 官網](https://ai.finlab.tw/)")
-    st.markdown("- [API 文檔](https://doc.finlab.tw/)")
-    st.markdown("- [GitHub](https://github.com/yourusername/KevinRule)")
 
     st.markdown("---")
 
