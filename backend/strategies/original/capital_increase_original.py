@@ -18,6 +18,9 @@ from backend.strategies.base_strategy import StrategyBase
 class CapitalIncreaseOriginalStrategy(StrategyBase):
     """策略 5: 大現增快繳款結束（Kevin 原始版）"""
 
+    # 策略特定的數據需求
+    required_data_keys = {"eps"}
+
     def __init__(self):
         self.strategy_id = 'capital_increase_original'
         self.strategy_name = '策略 5: 大現增快繳款結束（原始版）'

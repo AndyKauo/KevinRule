@@ -7,7 +7,7 @@ Base Strategy Class
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, List, Tuple
+from typing import Dict, Any, Optional, List, Tuple, Set
 import pandas as pd
 import numpy as np
 from datetime import date, datetime
@@ -16,6 +16,18 @@ from config.settings import settings
 
 class StrategyBase(ABC):
     """策略基類"""
+
+    # 共用的基礎資料需求。幾乎所有策略都會使用價格、成交量、市值與篩選器。
+    BASE_REQUIRED_KEYS: Set[str] = {
+        "close",
+        "volume",
+        "market_cap",
+        "exclude_attention",
+        "exclude_cash_delivery",
+    }
+
+    # 子類可以覆寫或擴充的資料需求集合
+    required_data_keys: Set[str] = frozenset()
 
     def __init__(self, name: str, description: str):
         """
@@ -140,6 +152,15 @@ class StrategyBase(ABC):
                 mask &= latest_filter.reindex(mask.index, fill_value=False)
 
         return mask
+
+    def get_required_data_keys(self) -> Set[str]:
+        """
+        取得策略執行所需的資料欄位鍵集合
+
+        Returns:
+            包含基礎需求和策略特定需求的資料鍵集合
+        """
+        return set(self.BASE_REQUIRED_KEYS) | set(self.required_data_keys)
 
     def standardize(self, factor: pd.DataFrame) -> pd.DataFrame:
         """

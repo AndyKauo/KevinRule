@@ -26,6 +26,9 @@ from config.settings import settings
 class LowPriceSmallCapStrategy(StrategyBase):
     """低價小股本營收創高策略"""
 
+    # 策略特定的數據需求
+    required_data_keys = {"revenue", "roe", "dividend_announcement"}
+
     def __init__(self):
         super().__init__(
             name="低價小股本營收創一年高",

@@ -34,6 +34,9 @@ from config.settings import settings
 class CapitalIncreaseStrategy(StrategyBase):
     """現金增資策略"""
 
+    # 策略特定的數據需求
+    required_data_keys = {"eps"}
+
     def __init__(self):
         super().__init__(
             name="大現增快繳款結束",

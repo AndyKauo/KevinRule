@@ -29,6 +29,9 @@ from config.settings import settings
 class BreakoutAfterBaseStrategy(StrategyBase):
     """長時間未破底後突破策略"""
 
+    # 策略特定的數據需求
+    required_data_keys = {"revenue", "roe", "dividend_announcement", "dividend_yield"}
+
     def __init__(self):
         super().__init__(
             name="長時間未破底後創新高",

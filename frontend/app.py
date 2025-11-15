@@ -11,6 +11,8 @@ Streamlit 主應用程式
 
 import streamlit as st
 import sys
+import os
+import threading
 from pathlib import Path
 
 # 添加專案根目錄到 Python 路徑
@@ -35,6 +37,32 @@ st.set_page_config(
 
 # ========== 應用主題 CSS ==========
 st.markdown(Theme.generate_css(st.session_state.theme), unsafe_allow_html=True)
+
+# ========== Idle Auto-Exit（Railway Serverless Sleep）==========
+
+IDLE_TIMEOUT = 600  # 10 分鐘無操作自動退出（秒）
+
+# 全域 idle 計時器（在 Streamlit 多次 rerun 之間共用）
+if "idle_timer" not in globals():
+    idle_timer = None
+
+def _exit_app():
+    """Idle 超時後退出應用，讓 Railway 進入 Sleep 狀態"""
+    print("⏰ Idle timeout reached. Exiting app so Railway can scale to zero.")
+    os._exit(0)  # 強制結束程式，讓 Railway 把容器關掉
+
+def reset_idle_timer():
+    """重置 idle 計時器（每次用戶操作時調用）"""
+    global idle_timer
+    # 先把舊的 timer 取消，避免多個 timer 同時存在
+    if idle_timer is not None:
+        idle_timer.cancel()
+    idle_timer = threading.Timer(IDLE_TIMEOUT, _exit_app)
+    idle_timer.daemon = True
+    idle_timer.start()
+
+# 每次 Streamlit rerun（也就是有互動時）都會執行到這裡 → 重新計時
+reset_idle_timer()
 
 # ========== 側邊欄導航樣式優化 ==========
 st.markdown("""

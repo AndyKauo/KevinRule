@@ -23,6 +23,9 @@ from config.settings import settings
 class RevenueMomentumStrategy(StrategyBase):
     """營收動能策略"""
 
+    # 策略特定的數據需求
+    required_data_keys = {"revenue", "revenue_yoy", "revenue_mom", "industry"}
+
     def __init__(self):
         super().__init__(
             name="營收動能高於同業平均",

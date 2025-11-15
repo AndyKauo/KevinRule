@@ -6,11 +6,58 @@ FinLab API Client Wrapper
 Patterns copied from reference examples
 """
 
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Collection, Set
 import pandas as pd
 from datetime import datetime
 from config.settings import ensure_finlab_login
 from backend.etl.finlab_compat import convert_to_pandas, is_finlab_dataframe
+
+
+# ========== 數據字段常量（用於按需加載）==========
+
+PRICE_FIELDS = {"close", "open", "high", "low", "volume", "amount"}
+FINANCIAL_FIELDS = {
+    "total_assets",
+    "total_liabilities",
+    "equity",
+    "cash",
+    "inventory",
+    "current_assets",
+    "current_liabilities",
+    "common_stock",
+    "gross_profit",
+    "operating_income",
+    "net_income",
+    "operating_cash_flow",
+    "investing_cash_flow",
+    "financing_cash_flow",
+    "eps",
+}
+MONTHLY_REVENUE_FIELDS = {"revenue", "revenue_yoy", "revenue_mom"}
+FUNDAMENTAL_RATIO_FIELDS = {"roe", "roa", "debt_ratio", "current_ratio", "quick_ratio"}
+MARGIN_FIELDS = {
+    "margin_ratio",
+    "short_ratio",
+    "margin_balance",
+    "short_balance",
+    "margin_buy",
+    "margin_sell",
+}
+FILTER_FIELDS = {"exclude_cash_delivery", "exclude_attention"}
+COMPANY_INFO_FIELDS = {"industry", "company_name", "company_short_name"}
+SINGLE_FIELD_KEYS = {"market_cap", "dividend_yield", "pe_ratio", "pb_ratio", "dividend_announcement"}
+
+# 所有可用的數據字段
+ALL_AVAILABLE_KEYS: Set[str] = (
+    PRICE_FIELDS
+    | FINANCIAL_FIELDS
+    | MONTHLY_REVENUE_FIELDS
+    | FUNDAMENTAL_RATIO_FIELDS
+    | MARGIN_FIELDS
+    | FILTER_FIELDS
+    | COMPANY_INFO_FIELDS
+    | SINGLE_FIELD_KEYS
+)
 
 
 class FinLabClient:
@@ -344,6 +391,85 @@ class FinLabClient:
             'exclude_cash_delivery': self._get_and_convert('etl:full_cash_delivery_stock_filter'),
             'exclude_attention': self._get_and_convert('etl:noticed_stock_filter'),
         }
+
+    # ========== 按需數據加載 ==========
+
+    def get_data_bundle(self, keys: Collection[str]) -> Dict[str, Any]:
+        """
+        根據需求僅載入指定的資料欄位，減少記憶體占用
+
+        Args:
+            keys: 需要載入的資料欄位集合
+
+        Returns:
+            包含請求資料的字典
+        """
+        requested: Set[str] = set(keys)
+        data_dict: Dict[str, Any] = {}
+
+        if not requested:
+            return data_dict
+
+        def include_group(group_keys, loader):
+            """載入整個資料組（如果有任何欄位被請求）"""
+            matched = requested & group_keys
+            if not matched:
+                return
+            group_data = loader()
+            for key in matched:
+                if isinstance(group_data, dict):
+                    if key in group_data:
+                        data_dict[key] = group_data[key]
+                else:
+                    data_dict[key] = group_data
+            requested.difference_update(matched)
+
+        # 價格數據
+        include_group(PRICE_FIELDS, self.get_price_data)
+
+        # 市值
+        if "market_cap" in requested:
+            data_dict["market_cap"] = self.get_market_cap()
+            requested.remove("market_cap")
+
+        # 財務數據
+        include_group(FINANCIAL_FIELDS, self.get_financial_data)
+
+        # 月營收
+        include_group(MONTHLY_REVENUE_FIELDS, self.get_monthly_revenue)
+
+        # 基本面比率
+        include_group(FUNDAMENTAL_RATIO_FIELDS, self.get_fundamental_ratios)
+
+        # 殖利率
+        if "dividend_yield" in requested:
+            data_dict["dividend_yield"] = self.get_dividend_yield()
+            requested.remove("dividend_yield")
+
+        # PE/PB
+        if "pe_ratio" in requested:
+            data_dict["pe_ratio"] = self.get_pe_ratio()
+            requested.remove("pe_ratio")
+
+        if "pb_ratio" in requested:
+            data_dict["pb_ratio"] = self.get_pb_ratio()
+            requested.remove("pb_ratio")
+
+        # 融資融券
+        include_group(MARGIN_FIELDS, self.get_margin_data)
+
+        # 公司資訊
+        include_group(COMPANY_INFO_FIELDS, self.get_company_info)
+
+        # 股利數據
+        if "dividend_announcement" in requested:
+            data_dict["dividend_announcement"] = self.get_dividend_data()
+            requested.remove("dividend_announcement")
+
+        # 篩選器
+        include_group(FILTER_FIELDS, self.get_filters)
+
+        return data_dict
 
     # ========== 綜合數據獲取 ==========
 

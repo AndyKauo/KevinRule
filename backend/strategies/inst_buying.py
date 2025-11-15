@@ -31,6 +31,9 @@ from config.settings import settings
 class InstitutionalBuyingStrategy(StrategyBase):
     """大戶買超策略（連續2日）"""
 
+    # 策略特定的數據需求
+    required_data_keys = {"eps", "margin_buy", "margin_sell"}
+
     def __init__(self):
         super().__init__(
             name="連兩日大戶大買超",

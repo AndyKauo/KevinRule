@@ -19,6 +19,9 @@ from backend.strategies.base_strategy import StrategyBase
 class LowPriceSmallOriginalStrategy(StrategyBase):
     """策略 2: 低價小股本營收創一年高（Kevin 原始版）"""
 
+    # 策略特定的數據需求
+    required_data_keys = {"revenue", "dividend_announcement"}
+
     def __init__(self):
         self.strategy_id = 'low_price_small_original'
         self.strategy_name = '策略 2: 低價小股本營收創一年高（原始版）'

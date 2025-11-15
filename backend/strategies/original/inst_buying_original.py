@@ -19,6 +19,9 @@ from backend.strategies.base_strategy import StrategyBase
 class InstBuyingOriginalStrategy(StrategyBase):
     """策略 4: 連兩日大戶大買超（Kevin 原始版）"""
 
+    # 策略特定的數據需求
+    required_data_keys = {"eps", "margin_buy", "margin_sell"}
+
     def __init__(self):
         self.strategy_id = 'inst_buying_original'
         self.strategy_name = '策略 4: 連兩日大戶大買超（原始版）'

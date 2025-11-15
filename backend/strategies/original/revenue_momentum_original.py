@@ -21,6 +21,9 @@ from backend.strategies.base_strategy import StrategyBase
 class RevenueMomentumOriginalStrategy(StrategyBase):
     """策略 1: 營收動能高於同業平均（Kevin 原始版）"""
 
+    # 策略特定的數據需求
+    required_data_keys = {"revenue", "revenue_yoy", "revenue_mom", "eps", "industry"}
+
     def __init__(self):
         self.strategy_id = 'revenue_momentum_original'
         self.strategy_name = '策略 1: 營收動能高於同業平均（原始版）'

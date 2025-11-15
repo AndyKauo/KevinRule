@@ -23,6 +23,9 @@ from backend.strategies.base_strategy import StrategyBase
 class BreakoutOriginalStrategy(StrategyBase):
     """策略 3: 長時間未破底後創新高（Kevin 原始版）"""
 
+    # 策略特定的數據需求
+    required_data_keys = {"revenue", "roe", "dividend_announcement"}
+
     def __init__(self):
         self.strategy_id = 'breakout_original'
         self.strategy_name = '策略 3: 長時間未破底後創新高（原始版）'

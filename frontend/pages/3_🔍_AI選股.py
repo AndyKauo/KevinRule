@@ -36,6 +36,23 @@ if 'theme' not in st.session_state:
 # ========== 應用主題 CSS ==========
 st.markdown(Theme.generate_css(st.session_state.theme), unsafe_allow_html=True)
 
+# ========== 數據加載函數（使用 Streamlit Cache）==========
+
+@st.cache_data(ttl=86400, show_spinner=False)  # 1天緩存，FinLab 數據日更
+def load_strategy_data(data_keys: tuple, progress_callback=None) -> dict:
+    """
+    按需加載策略所需數據（使用 Streamlit 緩存）
+
+    Args:
+        data_keys: 需要載入的數據鍵集合（tuple 可 hashable）
+        progress_callback: 進度回調函數
+
+    Returns:
+        包含請求數據的字典
+    """
+    client = FinLabClient(progress_callback=progress_callback)
+    return client.get_data_bundle(set(data_keys))
+
 # ========== 側邊欄導航樣式優化 ==========
 st.markdown("""
 <style>
@@ -64,11 +81,11 @@ st.markdown("""
 
 # ========== 初始化 Session State ==========
 
-if 'data_loaded' not in st.session_state:
-    st.session_state.data_loaded = False
-    st.session_state.data = None
+# 注意：不再使用 session_state 存儲大數據
+# 數據通過 @st.cache_data 管理，自動緩存和清理
+
+if 'results' not in st.session_state:
     st.session_state.results = None
-    st.session_state.last_update = None
 
 if 'strategy_engine' not in st.session_state:
     st.session_state.strategy_engine = '學術優化版'
@@ -207,16 +224,11 @@ with st.sidebar:
     # 執行按鈕
     run_button = st.button("🚀 開始選股", type="primary", width='stretch')
 
-    if st.session_state.data_loaded:
-        st.success(f"✅ 數據已載入")
-        if st.session_state.last_update:
-            st.info(f"更新時間: {st.session_state.last_update.strftime('%Y-%m-%d %H:%M')}")
-
-    # 清除快取
+    # 清除快取（清除 Streamlit cache 和結果）
     if st.button("🔄 重新載入數據", width='stretch'):
-        st.session_state.data_loaded = False
-        st.session_state.data = None
+        st.cache_data.clear()
         st.session_state.results = None
+        st.success("✅ 緩存已清除")
         st.rerun()
 
 # ========== 主要內容 ==========
@@ -236,35 +248,9 @@ if run_button:
         progress_bar = st.progress(0)
         status_text = st.empty()
 
-        # Step 1: 載入數據
-        progress_bar.progress(10)
-
-        if not st.session_state.data_loaded:
-            # 使用 st.status() 顯示詳細進度
-            with st.status("📊 正在載入 FinLab 數據...", expanded=True) as loading_status:
-                progress_messages = []
-
-                # 定義進度回調函數
-                def update_progress(message):
-                    """接收 FinLabClient 的進度訊息並顯示在 UI"""
-                    progress_messages.append(message)
-                    st.write(message)
-
-                # 初始化 FinLabClient 並傳入進度回調
-                client = FinLabClient(progress_callback=update_progress)
-                st.session_state.data = client.get_all_data()
-                st.session_state.data_loaded = True
-                st.session_state.last_update = datetime.now()
-
-                # 更新狀態為完成
-                loading_status.update(label="✅ 數據載入完成 (共 8 項數據)", state="complete")
-
-        progress_bar.progress(30)
-        status_text.text("✅ 數據載入完成")
-
-        # Step 2: 執行策略
-        status_text.text("🎯 正在執行選股策略...")
-        progress_bar.progress(40)
+        # Step 1: 準備策略管理器並計算所需數據鍵
+        progress_bar.progress(5)
+        status_text.text("🔍 分析策略數據需求...")
 
         # 根據選擇的引擎初始化對應的策略管理器
         if st.session_state.strategy_engine == "學術優化版":
@@ -275,6 +261,54 @@ if run_button:
             engine_label = "📋 原始 Kevin 版"
 
         st.info(f"使用引擎: {engine_label}")
+
+        # 計算所有選中策略需要的數據鍵
+        required_keys = set()
+        for strategy_key in selected_strategies:
+            if hasattr(manager, 'get_strategy'):
+                strategy = manager.get_strategy(strategy_key)
+            else:
+                # StrategyManagerOriginal 使用 strategies 字典
+                strategy = manager.strategies[strategy_key]
+
+            # 獲取策略需要的數據鍵
+            if hasattr(strategy, 'get_required_data_keys'):
+                required_keys.update(strategy.get_required_data_keys())
+            # Kevin 原始版策略沒有 get_required_data_keys，使用 required_data_keys 屬性
+            elif hasattr(strategy, 'required_data_keys'):
+                from backend.strategies.base_strategy import StrategyBase
+                required_keys.update(StrategyBase.BASE_REQUIRED_KEYS)
+                required_keys.update(strategy.required_data_keys)
+
+        st.info(f"📊 需要載入 {len(required_keys)} 個數據字段")
+
+        # Step 2: 載入數據（使用緩存）
+        progress_bar.progress(15)
+        status_text.text("📊 正在載入 FinLab 數據...")
+
+        with st.status("📊 載入策略數據中...", expanded=True) as loading_status:
+            progress_messages = []
+
+            # 定義進度回調函數
+            def update_progress(message):
+                """接收 FinLabClient 的進度訊息並顯示在 UI"""
+                progress_messages.append(message)
+                st.write(message)
+
+            # 使用緩存函數加載數據（tuple 可 hashable）
+            data = load_strategy_data(tuple(sorted(required_keys)), update_progress)
+
+            loading_status.update(
+                label=f"✅ 數據載入完成 (共 {len(required_keys)} 個字段)",
+                state="complete"
+            )
+
+        progress_bar.progress(30)
+        status_text.text("✅ 數據載入完成")
+
+        # Step 3: 執行策略
+        status_text.text("🎯 正在執行選股策略...")
+        progress_bar.progress(40)
 
         results = {}
         strategy_progress = 0
@@ -291,7 +325,7 @@ if run_button:
             status_text.text(f"🔄 執行策略 {i+1}/{strategy_count}: {strategy_name}")
 
             try:
-                result = manager.run_strategy(strategy_key, st.session_state.data)
+                result = manager.run_strategy(strategy_key, data)
                 # 使用 copy() 避免引用問題：防止 upsert 修改原 DataFrame
                 results[strategy_key] = result.copy() if not result.empty else result
 

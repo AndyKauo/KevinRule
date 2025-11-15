@@ -33,6 +33,9 @@ from config.settings import settings
 class CashGrowthStrategy(StrategyBase):
     """現金快速累積策略"""
 
+    # 策略特定的數據需求
+    required_data_keys = {"cash", "eps", "revenue_yoy"}
+
     def __init__(self):
         super().__init__(
             name="現金快速累積中",
